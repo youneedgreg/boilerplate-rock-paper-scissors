@@ -1,75 +1,84 @@
 def player(prev_play, opponent_history=[]):
-    # Add previous play to history
-    if prev_play:
-        opponent_history.append(prev_play)
+    # Set of ideal counters
+    counter = {"R": "P", "P": "S", "S": "R"}
     
-    # Default move for the first round
-    if len(opponent_history) <= 1:
-        return "P"  # Starting with paper gives a small advantage
+    # First move
+    if not prev_play:
+        return "R"
     
-    # Ideal counters for each move
-    counter_move = {"P": "S", "R": "P", "S": "R"}
+    # Remember this play
+    opponent_history.append(prev_play)
     
-    # Strategy for Quincy (cycles through ["R", "R", "P", "P", "S"])
-    # No need to modify this part as it's already working perfectly
+    # Detect which bot we're playing against
+    n = len(opponent_history)
     
-    # Strategy for Kris - always counter the opponent's previous move
-    if len(opponent_history) >= 2:
-        # Detect if opponent is likely Kris
-        kris_pattern = True
-        for i in range(min(5, len(opponent_history) - 1)):
-            if opponent_history[-(i+1)] != counter_move.get(opponent_history[-(i+2)], ""):
-                kris_pattern = False
-                break
+    # Anti-Kris strategy
+    # Kris always counters our last move, so we can exploit this
+    if n > 3:
+        # Pattern check for Kris
+        kris_count = 0
+        for i in range(1, min(6, n)):
+            if i+1 <= n and opponent_history[-i] == counter.get(prev_play, "R"):
+                kris_count += 1
         
-        if kris_pattern or len(opponent_history) < 10:
-            # Against Kris, we need to anticipate what they'll play next
-            # Kris will play counter to our last move
-            anticipated_move = counter_move.get(opponent_history[-1], "R")
-            # We counter Kris's anticipated move
-            return counter_move.get(anticipated_move, "P")
+        if kris_count >= 3 or (n < 20 and kris_count >= 2):
+            # We need to think 2 steps ahead:
+            # 1. What will Kris play based on our last move?
+            kris_next = counter.get(prev_play, "R")
+            # 2. What beats that?
+            return counter.get(kris_next, "R")
     
-    # Strategy for Abbey
-    # Abbey predicts based on patterns of our last 2 moves
-    if len(opponent_history) >= 4:
-        # Create markov chain to track patterns
-        markov = {}
-        for i in range(len(opponent_history) - 2):
-            key = opponent_history[i] + opponent_history[i+1]
-            if key not in markov:
-                markov[key] = {"R": 0, "P": 0, "S": 0}
-            
-            if i+2 < len(opponent_history):
-                markov[key][opponent_history[i+2]] += 1
+    # Abbey uses our last two moves to predict our next move
+    # Let's create a pattern that will trick Abbey, but be predictable to us
+    if n >= 10:
+        # Every 8 moves, create this pattern to exploit:
+        cycle = n % 8
         
-        # Look at last 2 plays to predict next move
-        last_key = opponent_history[-2] + opponent_history[-1]
-        if last_key in markov:
-            # Find the most likely next move based on history
-            predicted_move = max(markov[last_key], key=markov[last_key].get)
-            # Abbey will counter what she predicts we'll play
-            abbey_next_move = counter_move.get(predicted_move, "R")
-            # We counter Abbey's anticipated move
-            return counter_move.get(abbey_next_move, "P")
-        
-        # If we can't predict from markov, try a different approach
-        # Abbey will try to counter what we've played most recently, so mix it up
-        if opponent_history[-1] == opponent_history[-2]:
-            # If we played the same thing twice, she'll expect us to play it again
-            # So we play what beats the counter to our recent moves
-            anticipated_abbey = counter_move.get(opponent_history[-1], "R")
-            return counter_move.get(anticipated_abbey, "P")
+        if cycle == 0: return "R"
+        if cycle == 1: return "P"
+        if cycle == 2: return "P"  # Abbey will expect R after PP
+        if cycle == 3: return "S"  # But we'll play S to surprise
+        if cycle == 4: return "S"
+        if cycle == 5: return "R"
+        if cycle == 6: return "R"  # Abbey will expect S after RR
+        if cycle == 7: return "P"  # But we'll play P to surprise
     
-    # Strategy for Mrugesh (plays based on most frequent in last 10)
-    # This part is already working well
-    if len(opponent_history) >= 10:
+    # Quincy strategy
+    # Quincy cycles through ["R", "R", "P", "P", "S"]
+    if n > 5:
+        quincy_pattern = ["R", "R", "P", "P", "S"]
+        quincy_matches = 0
+        
+        for i in range(min(5, n)):
+            if opponent_history[-(i+1)] == quincy_pattern[(n - i - 1) % 5]:
+                quincy_matches += 1
+        
+        if quincy_matches >= 4:
+            next_quincy_move = quincy_pattern[n % 5]
+            return counter.get(next_quincy_move, "P")
+    
+    # Mrugesh strategy
+    # Plays based on most frequent in last 10 moves
+    if n >= 10:
         last_ten = opponent_history[-10:]
         most_frequent = max(set(last_ten), key=last_ten.count)
         
         # Mrugesh will play the counter to our most frequent move
-        mrugesh_move = counter_move.get(most_frequent, "R")
-        # We counter Mrugesh's anticipated move
-        return counter_move.get(mrugesh_move, "P")
+        next_mrugesh_move = counter.get(most_frequent, "R")
+        
+        # Counter what Mrugesh is likely to play
+        return counter.get(next_mrugesh_move, "P")
     
-    # Default strategy - play what would beat the opponent's most recent move
-    return counter_move.get(opponent_history[-1], "P")
+    # If we can't determine the bot or it's early in the game
+    # Look at the last 3 moves for a pattern
+    if n >= 3:
+        last_three = opponent_history[-3:]
+        if last_three.count("R") >= 2:
+            return "P"  # Counter likely rock
+        elif last_three.count("P") >= 2:
+            return "S"  # Counter likely paper
+        elif last_three.count("S") >= 2:
+            return "R"  # Counter likely scissors
+    
+    # Basic counter strategy for early game
+    return counter.get(prev_play, "P")
