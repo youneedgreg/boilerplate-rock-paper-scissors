@@ -1,17 +1,23 @@
 def player(prev_play, counter=[0]):
+    # Increment the counter for each play
     counter[0] += 1
     
-    # Define ideal counter moves
+    # Define your ideal counter moves
     ideal_response = {"P": "S", "R": "P", "S": "R"}
     
-    # On first move
-    if prev_play == "":
+    # First move
+    if not prev_play:
         return "S"
     
-    # For rounds 1-9, just counter what was played
-    if counter[0] < 10:
-        return ideal_response[prev_play]
+    # Counter strategy based on the play number
+    # This creates a pattern that confuses Abbey and Kris
+    play_number = counter[0] % 3
     
-    # After round 10, use the counter trick to beat all bots
-    # The trick is to counter the counter of the previous move
-    return ideal_response[ideal_response[prev_play]]
+    if play_number == 0:
+        # Every third play, counter the counter of the previous move
+        # This works well against Kris
+        return ideal_response[ideal_response[prev_play]]
+    else:
+        # Other plays, just counter the last move
+        # This works well against most bots
+        return ideal_response[prev_play]
